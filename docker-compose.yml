@@ -1,24 +1,40 @@
 version: '3'
 
+x-spark-common: &spark-common
+  image: bitnami/spark:latest
+  volumes:
+      - ./jobs:/opt/bitnami/spark/jobs
+  command: bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+  depends_on:
+    - spark-master
+  environment:
+    SPARK_MODE: Worker
+    SPARK_WORKER_CORES: 2
+    SPARK_WORKERS_MEMORY: 1g
+    SPARK_MASTER_URL: spark://spark-master:7077
+  networks:
+   - karimsmartcity
+
+
+
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
-    hostname: zookeeper
     container_name: zookeeper
-    ports: 
+    ports:
       - "2181:2181"
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - karimsmartcity
     healthcheck:
-      test: ['CMD', 'bash', '-c', "echo 'ruok' | nc localhost 2181"]
+      test: ["CMD", "bash", "-c", "echo ruok | nc localhost 2181"]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks: 
-      - karimsmartcity
   broker:
-    image: confluentinc/cp-zookeeper:7.4.0
+    image: confluentinc/cp-server:7.4.0
     hostname: broker
     container_name: broker
     depends_on:
@@ -53,5 +69,19 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  spark-master:
+    image: bitnami/spark:latest
+    volumes:
+      - ./jobs:/opt/bitnami/spark/jobs
+    command: bin/spark-class org.apache.spark.deploy.master.Master
+    ports:
+     - "9090:8080"
+     - "7077:7077"
+    networks:
+      - karimsmartcity
+  spark-worker-1:
+    <<: *spark-common
+  spark-worker-2:
+    <<: *spark-common
 networks:
   karimsmartcity:
